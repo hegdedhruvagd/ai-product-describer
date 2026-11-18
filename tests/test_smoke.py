@@ -1,11 +1,10 @@
-"""These pass on day one. They check the plumbing so you notice quickly if you break it."""
-import os
+"""Tests the JSON store and the basic CLI readiness command."""
 
-from app import llm
 from app.storage import Store
 
 
-def test_the_store_keeps_what_you_put_in_it(tmp_path):
+def test_store_round_trips_values_and_returns_defaults_for_missing_keys(tmp_path):
+    """Writing values survives reads, missing keys return their default, and all() is sorted."""
     store = Store(str(tmp_path / "app.json"))
     store.put("hello", {"n": 1})
     assert store.get("hello") == {"n": 1}
@@ -13,15 +12,8 @@ def test_the_store_keeps_what_you_put_in_it(tmp_path):
     assert store.all() == {"hello": {"n": 1}}
 
 
-def test_model_settings_default_to_a_local_ollama(monkeypatch, tmp_path):
-    monkeypatch.chdir(tmp_path)                  # no .env here
-    for name in ("LLM_BASE_URL", "LLM_API_KEY", "LLM_MODEL"):
-        monkeypatch.delenv(name, raising=False)
-    base, key, model = llm.settings()
-    assert base == "http://localhost:11434/v1" and key == "" and model == ""
-
-
-def test_the_command_line_runs(capsys):
+def test_hello_command_confirms_the_cli_is_ready(capsys):
+    """The hello subcommand prints its readiness message."""
     from app.cli import main
     main(["hello"])
     assert "is ready" in capsys.readouterr().out

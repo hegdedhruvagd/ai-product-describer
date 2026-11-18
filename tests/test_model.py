@@ -4,6 +4,7 @@ from app.model import CausalSelfAttention, GPTConfig, GPTLanguageModel
 
 
 def test_causal_attention_masks_future_tokens():
+    """Changing future inputs cannot affect attention outputs at earlier positions."""
     torch.manual_seed(2)
     attention = CausalSelfAttention(embedding_dim=16, num_heads=4, dropout=0, max_seq_len=8).eval()
     original = torch.randn(1, 6, 16)
@@ -17,6 +18,7 @@ def test_causal_attention_masks_future_tokens():
 
 
 def test_transformer_and_gpt_forward_shapes_and_loss():
+    """Transformer logits match batch/sequence/vocabulary dimensions and yield finite loss."""
     model = GPTLanguageModel(GPTConfig(vocab_size=280, block_size=12, embedding_dim=16,
                                        num_heads=4, num_layers=2, dropout=0))
     token_ids = torch.randint(0, 280, (2, 8))

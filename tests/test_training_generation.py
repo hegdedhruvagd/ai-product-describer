@@ -1,5 +1,6 @@
 import json
 
+import pytest
 import torch
 
 from app.generation import generate_text, load_trained_model
@@ -7,6 +8,7 @@ from app.training import train_model
 
 
 def test_tiny_cpu_training_saves_loadable_model_and_generates(tmp_path):
+    """A short CPU run saves artifacts that local inference can load and use."""
     torch.set_num_threads(1)
     result = train_model(
         output_dir=tmp_path, steps=2, batch_size=2, context_length=16,
@@ -21,16 +23,13 @@ def test_tiny_cpu_training_saves_loadable_model_and_generates(tmp_path):
     model, tokenizer = load_trained_model(tmp_path)
     assert model.config.vocab_size == tokenizer.vocab_size
     generated = generate_text(
-        "Product name: Test Dew\nCategory: Serum\nDescription:",
+        "Product: Test Dew\nCategory: Serum\nDescription:",
         model_dir=tmp_path, max_new_tokens=5, temperature=1, top_k=1, top_p=1,
     )
     assert isinstance(generated, str)
 
 
 def test_missing_checkpoint_has_actionable_error(tmp_path):
-    try:
+    """A missing local checkpoint explains which command trains one."""
+    with pytest.raises(FileNotFoundError, match="python -m app.cli train"):
         load_trained_model(tmp_path)
-    except FileNotFoundError as exc:
-        assert "python -m app.cli train" in str(exc)
-    else:
-        raise AssertionError("expected missing checkpoint to fail")

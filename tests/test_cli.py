@@ -4,6 +4,7 @@ from app import cli
 
 
 def test_describe_reports_missing_model_with_training_instruction(tmp_path, capsys):
+    """Describe exits with a clear train-first message when no checkpoint exists."""
     with pytest.raises(SystemExit) as error:
         cli.main(["describe", "--name", "Test Balm", "--category", "Lip balm", "--model-dir", str(tmp_path)])
     assert error.value.code == 1
@@ -13,6 +14,7 @@ def test_describe_reports_missing_model_with_training_instruction(tmp_path, caps
 
 
 def test_train_and_describe_commands_pass_options_to_pipeline(monkeypatch, tmp_path, capsys):
+    """CLI arguments reach training and generation with a correctly formatted prompt."""
     trained = []
     described = []
 

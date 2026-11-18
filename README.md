@@ -1,25 +1,24 @@
 # AskThili AI Product Describer
 
-A small, offline command-line product describer built around a decoder-only GPT trained from scratch in PyTorch. It uses a local synthetic skincare and personal-care corpus; training and generation do not call an external language-model API or download a pretrained model.
+This command-line tool trains a small decoder-only GPT from scratch in PyTorch on fictional skincare and personal-care product examples. Training and inference use local code, the bundled corpus, and local model artifacts. They do not call an external LLM API or download a pretrained model.
 
-## Architecture
+## How it works
 
-- `data/skincare_corpus.jsonl` contains the training examples.
-- `app/core.py` loads the JSONL records.
-- `app/tokenizer.py` learns byte-pair merges directly from UTF-8 bytes. The 256 possible byte values make the tokenizer able to encode arbitrary Unicode text; unseen text falls back to those byte tokens.
-- `app/model.py` provides learned token and position embeddings, multi-head scaled dot-product causal attention, pre-layer normalization, residual connections, feed-forward blocks, and next-token logits.
-- `app/training.py` formats the records, trains the tokenizer, splits examples into training and validation sets, optimizes with AdamW and cross-entropy, and saves a checkpoint.
-- `app/generation.py` loads the local checkpoint and samples tokens autoregressively with temperature, top-k and top-p controls.
-- `app/cli.py` provides `hello`, `train` and `describe` commands.
-- Model files are written under `artifacts/model/`, which is ignored by Git.
+`data/skincare_corpus.jsonl` is read by `app/core.py`. `app/prompting.py` formats each record as product details followed by a description field. `app/training.py` splits records into training and validation sets, trains the tokenizer on the training records, and optimizes the model to predict the next token. The saved model and tokenizer are loaded by `app/generation.py` for local inference. `app/cli.py` exposes the workflow through `hello`, `train`, and `describe` commands.
 
-The old `app/llm.py` starter helper remains for compatibility with its plumbing test. The training and describe commands do not use it.
+The tokenizer in `app/tokenizer.py` starts with all 256 byte values and learns frequent adjacent-byte merges from the training text. Byte-level BPE was chosen because every UTF-8 input, including unseen names, punctuation, and Unicode characters, can be represented without an unknown-token fallback. Its vocabulary can stay small for this corpus, and the learned merge list is saved with the checkpoint.
+
+The Transformer in `app/model.py` adds learned token and position embeddings, then applies pre-normalized multi-head self-attention and feed-forward blocks with residual connections. Attention scores are scaled by the square root of the head width. A lower-triangular mask leaves each position able to attend only to itself and earlier positions; future scores are set to negative infinity before softmax. This prevents later answer tokens from leaking into predictions for earlier positions during training.
+
+Training uses the formatted product examples as token sequences, separated by an end-of-record token. At each position, the model predicts the next token and cross-entropy measures the difference from the actual next token. AdamW updates the model weights. A deterministic record-level split reserves examples for validation. Training defaults to CPU; `--device auto` or `--device cuda` can select CUDA when available. Checkpoints, tokenizer merges, and training configuration are stored locally under `artifacts/model/`, which Git ignores.
+
+The retained `app/storage.py` JSON key-value store is tested but is not part of the model training or generation path.
 
 ## Dataset
 
-[`data/skincare_corpus.jsonl`](data/skincare_corpus.jsonl) is UTF-8 JSON Lines with 135 original, fictional products. Each record has `product_name`, `category`, `key_ingredients`, `target_skin_hair_type`, `size` and `description`. There are 15 examples in each category: face cleanser, moisturiser, sunscreen, serum, face mask, body lotion, shampoo, conditioner and lip balm.
+The UTF-8 JSONL corpus contains 135 fictional records, with 15 examples in each of nine categories: face cleanser, moisturiser, sunscreen, serum, face mask, body lotion, shampoo, conditioner, and lip balm. Each record has `product_name`, `category`, `key_ingredients`, `target_skin_hair_type`, `size`, and `description`.
 
-Load the bundled examples with `load_product_corpus()` from `app.core`. The BPE vocabulary is learned from these product examples each time training runs, and the resulting merge rules are saved beside the model.
+The corpus and default model are deliberately small so the complete pipeline can run on a CPU laptop. The model defaults to a 64-token context, 64-dimensional embeddings, four attention heads, and two Transformer blocks. The corpus is synthetic and has reused writing patterns; it is useful for exercising the training pipeline, not for teaching broad product knowledge.
 
 ## Windows PowerShell setup
 
@@ -31,54 +30,42 @@ py -3.12 -m venv .venv
 .\.venv\Scripts\python.exe -m pip install -r requirements.txt
 ```
 
-No `.env` file, API key, network connection or model download is needed for training or inference.
+Once dependencies are installed, training and inference need no internet connection, `.env` file, API key, or model download.
 
-## Train
+## Train and describe
 
-Train the small CPU model with the built-in defaults:
+Train using the CPU defaults and save the checkpoint to `artifacts/model/`:
 
 ```powershell
 .\.venv\Scripts\python.exe -m app.cli train
 ```
 
-The default run uses 200 optimizer steps, batch size 8, context length 64, learning rate `0.0003`, BPE vocabulary target 384, embedding width 64, four attention heads, two Transformer blocks, dropout 0.1 and seed 42. It prints training progress and final training and validation loss. The checkpoint, tokenizer merge rules and configuration are stored in `artifacts/model/`.
-
-Example shorter run and custom output directory:
-
-```powershell
-.\.venv\Scripts\python.exe -m app.cli train --steps 20 --batch-size 4 --context-length 48 --seed 7 --output-dir artifacts/experiment
-```
-
-Available training options: `--steps`, `--batch-size`, `--context-length`, `--learning-rate`, `--vocab-size`, `--seed`, `--device` (`cpu`, `cuda` or `auto`), `--embedding-dim`, `--num-heads`, `--num-layers`, `--dropout` and `--output-dir`. CPU is the default; CUDA can be selected when available. Keep the embedding width divisible by the number of heads.
-
-## Generate a description
-
-Train first, then provide a product name and category. Ingredients, target type and size have usable defaults:
+Then describe a product. Ingredients, target, and size can be omitted; the name and category are required:
 
 ```powershell
 .\.venv\Scripts\python.exe -m app.cli describe --name "Willow Oat Wash" --category "Face cleanser" --ingredients "oat extract, glycerin" --target "sensitive-feeling skin" --size "150 ml"
 ```
 
-Generation options are `--model-dir`, `--max-new-tokens`, `--temperature`, `--top-k` (0 disables top-k), `--top-p` and `--device`. If no trained checkpoint exists, the CLI explains that `train` must be run first. The generator uses only the saved PyTorch model and tokenizer.
+The default training run uses 200 steps, batch size 8, context length 64, learning rate `0.0003`, vocabulary target 384, seed 42, embedding width 64, four heads, two layers, and dropout 0.1. Training options are `--steps`, `--batch-size`, `--context-length`, `--learning-rate`, `--vocab-size`, `--seed`, `--device` (`cpu`, `cuda`, `auto`), `--embedding-dim`, `--num-heads`, `--num-layers`, `--dropout`, and `--output-dir`.
 
-Check CLI usage or run its wiring check:
+Generation options are `--model-dir`, `--max-new-tokens`, `--temperature`, `--top-k` (use 0 to disable), `--top-p`, and `--device`. If the checkpoint is missing, the CLI explains that training must run first. Use `python -m app.cli --help` and `python -m app.cli describe --help` for usage details.
 
-```powershell
-.\.venv\Scripts\python.exe -m app.cli --help
-.\.venv\Scripts\python.exe -m app.cli describe --help
-.\.venv\Scripts\python.exe -m app.cli hello
+### Recorded short-run example
+
+This output is from an actual 30-step CPU smoke run with a smaller one-layer model, greedy top-k sampling, and the product details above. It is an example of what that short run produced, not a guaranteed result:
+
+```text
+1:1:1:1:1:1:1:1:1:1:1:1:1:1:1:1:1:1:1:1:1:1:1
 ```
+
+The output shows the main quality limitation observed in testing: a short run can complete training and checkpoint inference while still generating repetitive, unusable text. More training may change the output, but this small synthetic corpus does not establish that longer training will produce dependable product copy. Review generated text and all product or ingredient claims before use.
 
 ## Tests
 
-Run all tests with:
+Run all tests from PowerShell:
 
 ```powershell
 .\.venv\Scripts\python.exe -m pytest -q
 ```
 
-Tests include corpus/schema coverage, tokenizer Unicode and persistence checks, causal attention behavior, GPT dimensions and loss, and a tiny CPU training/checkpoint/generation run. The tests do not run the full default training job.
-
-## Limitations
-
-This deliberately small synthetic corpus has only 135 examples across several product types. A compact CPU-trained GPT can learn the formatting and recurring vocabulary, but it will not have the fluency, factual reliability or broad knowledge of a large pretrained model. Generated descriptions may be repetitive or nonsensical; review product claims and ingredient details before use. The default run demonstrates the complete custom-model pipeline, not production-grade quality.
+The tests cover corpus schema and category coverage, BPE round trips and persistence, embedding and model dimensions, causal masking, next-token loss, tiny CPU training, checkpoint loading, generation, and CLI errors and argument routing. They do not run the full default training job.
