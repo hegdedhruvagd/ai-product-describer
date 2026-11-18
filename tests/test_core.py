@@ -1,41 +1,50 @@
-"""Your tests. Each milestone in README.md gets one here: write the test first, then make it pass.
+"""Milestone tests. Remove a skip as the corresponding milestone is implemented."""
+from collections import Counter
+import re
 
-They start skipped. Remove the `skip` line as you work on each milestone.
-"""
 import pytest
 
+from app.core import CORPUS_PATH, load_product_corpus
+
+
 # Milestone 1: Collect a small corpus of product descriptions for a specific category.
-@pytest.mark.skip(reason="remove this line when you start milestone 1")
-def test_milestone_1():
-    raise NotImplementedError("write the test for milestone 1")
+def test_milestone_1_dataset_exists_and_loads():
+    assert CORPUS_PATH.is_file()
+    records = load_product_corpus()
+    assert records
 
 
-# Milestone 2: Implement the byte-pair tokenizer and generate embeddings for product text.
-@pytest.mark.skip(reason="remove this line when you start milestone 2")
-def test_milestone_2():
-    raise NotImplementedError("write the test for milestone 2")
+def test_milestone_1_record_fields_are_complete():
+    required_fields = {
+        "product_name", "category", "key_ingredients",
+        "target_skin_hair_type", "size", "description",
+    }
+    for record in load_product_corpus():
+        assert required_fields <= record.keys()
+        assert all(isinstance(record[field], str) and record[field].strip()
+                   for field in ("product_name", "category", "target_skin_hair_type", "size", "description"))
+        assert isinstance(record["key_ingredients"], list)
+        assert record["key_ingredients"]
+        assert all(isinstance(ingredient, str) and ingredient.strip()
+                   for ingredient in record["key_ingredients"])
 
 
-# Milestone 3: Build the causal self-attention mechanism and assemble the transformer block.
-@pytest.mark.skip(reason="remove this line when you start milestone 3")
-def test_milestone_3():
-    raise NotImplementedError("write the test for milestone 3")
+def test_milestone_1_corpus_size_and_description_variety():
+    records = load_product_corpus()
+    descriptions = [record["description"] for record in records]
+    assert 100 <= len(records) <= 150
+    assert all(len(description.split()) >= 30 for description in descriptions)
+    assert len(set(descriptions)) >= 100
+    vocabulary = {word.lower() for description in descriptions for word in re.findall(r"[a-zA-Z]+", description)}
+    assert len(vocabulary) >= 100
 
 
-# Milestone 4: Train the GPT model using the collected product descriptions.
-@pytest.mark.skip(reason="remove this line when you start milestone 4")
-def test_milestone_4():
-    raise NotImplementedError("write the test for milestone 4")
-
-
-# Milestone 5: Implement a text generation feature that creates new product descriptions from a prompt.
-@pytest.mark.skip(reason="remove this line when you start milestone 5")
-def test_milestone_5():
-    raise NotImplementedError("write the test for milestone 5")
-
-
-# Milestone 6: Develop a CLI for users to input product details and receive generated descriptions.
-@pytest.mark.skip(reason="remove this line when you start milestone 6")
-def test_milestone_6():
-    raise NotImplementedError("write the test for milestone 6")
+def test_milestone_1_categories_have_reasonable_coverage():
+    distribution = Counter(record["category"] for record in load_product_corpus())
+    expected_categories = {
+        "Face cleanser", "Moisturiser", "Sunscreen", "Serum", "Face mask",
+        "Body lotion", "Shampoo", "Conditioner", "Lip balm",
+    }
+    assert set(distribution) == expected_categories
+    assert all(count >= 10 for count in distribution.values())
 

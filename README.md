@@ -1,52 +1,84 @@
-# AI Product Describer
+# AskThili AI Product Describer
 
-[![Built with askThili](https://ask.thili.ai/api/v1/public/projects/drqszgsk7w/badge.svg)](https://ask.thili.ai/b/drqszgsk7w)
+A small, offline command-line product describer built around a decoder-only GPT trained from scratch in PyTorch. It uses a local synthetic skincare and personal-care corpus; training and generation do not call an external language-model API or download a pretrained model.
 
-This project creates an AI Product Describer, a CLI tool for small business owners. It leverages a custom GPT model, built from scratch, to generate creative product descriptions by learning from existing product texts. The model processes raw text using byte-pair tokenization and embeddings, then applies causal self-attention to generate new, relevant descriptions.
+## Architecture
 
-## What you are building
+- `data/skincare_corpus.jsonl` contains the training examples.
+- `app/core.py` loads the JSONL records.
+- `app/tokenizer.py` learns byte-pair merges directly from UTF-8 bytes. The 256 possible byte values make the tokenizer able to encode arbitrary Unicode text; unseen text falls back to those byte tokens.
+- `app/model.py` provides learned token and position embeddings, multi-head scaled dot-product causal attention, pre-layer normalization, residual connections, feed-forward blocks, and next-token logits.
+- `app/training.py` formats the records, trains the tokenizer, splits examples into training and validation sets, optimizes with AdamW and cross-entropy, and saves a checkpoint.
+- `app/generation.py` loads the local checkpoint and samples tokens autoregressively with temperature, top-k and top-p controls.
+- `app/cli.py` provides `hello`, `train` and `describe` commands.
+- Model files are written under `artifacts/model/`, which is ignored by Git.
 
-**Goal.** You will build a command-line interface (CLI) tool that generates creative product descriptions for inventory by training a custom GPT model on examples of existing product texts.
+The old `app/llm.py` starter helper remains for compatibility with its plumbing test. The training and describe commands do not use it.
 
-**Done when.** The project is done when the CLI tool successfully takes product details as input and generates new, coherent product descriptions using a custom GPT model trained from scratch, applying byte-pair tokenization, embeddings, and causal self-attention.
+## Dataset
 
-## Milestones
+[`data/skincare_corpus.jsonl`](data/skincare_corpus.jsonl) is UTF-8 JSON Lines with 135 original, fictional products. Each record has `product_name`, `category`, `key_ingredients`, `target_skin_hair_type`, `size` and `description`. There are 15 examples in each category: face cleanser, moisturiser, sunscreen, serum, face mask, body lotion, shampoo, conditioner and lip balm.
 
-Tick these off as you go, and commit after each one.
+Load the bundled examples with `load_product_corpus()` from `app.core`. The BPE vocabulary is learned from these product examples each time training runs, and the resulting merge rules are saved beside the model.
 
-- [ ] **1. Collect a small corpus of product descriptions for a specific category.**  
-      Hint: Start by gathering a diverse set of product descriptions for a specific category.
-- [ ] **2. Implement the byte-pair tokenizer and generate embeddings for product text.**  
-      Hint: Implement the byte-pair tokenizer to process raw text and generate numerical embeddings.
-- [ ] **3. Build the causal self-attention mechanism and assemble the transformer block.**  
-      Hint: Build the causal self-attention mechanism and combine it with other components to form a transformer block.
-- [ ] **4. Train the GPT model using the collected product descriptions.**  
-      Hint: Train your custom GPT model using the prepared product description corpus.
-- [ ] **5. Implement a text generation feature that creates new product descriptions from a prompt.**  
-      Hint: Develop a function to generate new text, starting from a given prompt, using your trained GPT model.
-- [ ] **6. Develop a CLI for users to input product details and receive generated descriptions.**  
-      Hint: Create a command-line interface to allow users to easily input details and receive generated descriptions.
+## Windows PowerShell setup
 
-## Run it
+Install Python 3.12 and Git, open PowerShell in the repository, then run:
 
-You need Python 3.12 and git.
-
-```bash
-python3.12 -m venv .venv && source .venv/bin/activate
-pip install -r requirements.txt
-cp .env.example .env        # then choose a model; see the comments inside
-python -m app.cli hello
-pytest
+```powershell
+py -3.12 -m venv .venv
+.\.venv\Scripts\python.exe -m pip install --upgrade pip
+.\.venv\Scripts\python.exe -m pip install -r requirements.txt
 ```
 
-Your work goes in `app/core.py` (one stub per milestone) and `tests/test_core.py`. The first tests pass already; they
-check the plumbing.
+No `.env` file, API key, network connection or model download is needed for training or inference.
 
-## Settings and secrets
+## Train
 
-Model settings live in `.env`, which is ignored by git. **Never commit `.env` or paste a key into code.** If a key ever
-reaches GitHub, treat it as leaked and make a new one.
+Train the small CPU model with the built-in defaults:
 
-## Stretch ideas
+```powershell
+.\.venv\Scripts\python.exe -m app.cli train
+```
 
-- (none)
+The default run uses 200 optimizer steps, batch size 8, context length 64, learning rate `0.0003`, BPE vocabulary target 384, embedding width 64, four attention heads, two Transformer blocks, dropout 0.1 and seed 42. It prints training progress and final training and validation loss. The checkpoint, tokenizer merge rules and configuration are stored in `artifacts/model/`.
+
+Example shorter run and custom output directory:
+
+```powershell
+.\.venv\Scripts\python.exe -m app.cli train --steps 20 --batch-size 4 --context-length 48 --seed 7 --output-dir artifacts/experiment
+```
+
+Available training options: `--steps`, `--batch-size`, `--context-length`, `--learning-rate`, `--vocab-size`, `--seed`, `--device` (`cpu`, `cuda` or `auto`), `--embedding-dim`, `--num-heads`, `--num-layers`, `--dropout` and `--output-dir`. CPU is the default; CUDA can be selected when available. Keep the embedding width divisible by the number of heads.
+
+## Generate a description
+
+Train first, then provide a product name and category. Ingredients, target type and size have usable defaults:
+
+```powershell
+.\.venv\Scripts\python.exe -m app.cli describe --name "Willow Oat Wash" --category "Face cleanser" --ingredients "oat extract, glycerin" --target "sensitive-feeling skin" --size "150 ml"
+```
+
+Generation options are `--model-dir`, `--max-new-tokens`, `--temperature`, `--top-k` (0 disables top-k), `--top-p` and `--device`. If no trained checkpoint exists, the CLI explains that `train` must be run first. The generator uses only the saved PyTorch model and tokenizer.
+
+Check CLI usage or run its wiring check:
+
+```powershell
+.\.venv\Scripts\python.exe -m app.cli --help
+.\.venv\Scripts\python.exe -m app.cli describe --help
+.\.venv\Scripts\python.exe -m app.cli hello
+```
+
+## Tests
+
+Run all tests with:
+
+```powershell
+.\.venv\Scripts\python.exe -m pytest -q
+```
+
+Tests include corpus/schema coverage, tokenizer Unicode and persistence checks, causal attention behavior, GPT dimensions and loss, and a tiny CPU training/checkpoint/generation run. The tests do not run the full default training job.
+
+## Limitations
+
+This deliberately small synthetic corpus has only 135 examples across several product types. A compact CPU-trained GPT can learn the formatting and recurring vocabulary, but it will not have the fluency, factual reliability or broad knowledge of a large pretrained model. Generated descriptions may be repetitive or nonsensical; review product claims and ingredient details before use. The default run demonstrates the complete custom-model pipeline, not production-grade quality.

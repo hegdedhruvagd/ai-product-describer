@@ -9,4 +9,8 @@ __pycache__/
 
 # Local data
 data/
+!data/
+data/*
+!data/skincare_corpus.jsonl
+artifacts/
 *.db
