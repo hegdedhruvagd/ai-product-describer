@@ -12,11 +12,9 @@ The Transformer in `app/model.py` adds learned token and position embeddings, th
 
 Training uses the formatted product examples as token sequences, separated by an end-of-record token. At each position, the model predicts the next token and cross-entropy measures the difference from the actual next token. AdamW updates the model weights. A deterministic record-level split reserves examples for validation. Training defaults to CPU; `--device auto` or `--device cuda` can select CUDA when available. Checkpoints, tokenizer merges, and training configuration are stored locally under `artifacts/model/`, which Git ignores.
 
-The retained `app/storage.py` JSON key-value store is tested but is not part of the model training or generation path.
-
 ## Project origins and implementation
 
-This project began from the AskThili starter scaffold. It retains the `app/` package layout, the `hello` CLI readiness command, the JSON store in `app/storage.py`, the starter CI and pytest configuration, and the `milestone_1` entry point in `app/core.py`; the current corpus loader was added as that starter stub was replaced. The original scaffold also supplied the initial README, ignore rules, and plumbing tests, which were adapted as the project grew. The scaffold's API/LLM client and `.env` setup were later removed. The starter provided milestone prompts and stubs for the model work, not a working GPT implementation.
+This project began from the AskThili starter scaffold. It retains the `app/` package layout, the `hello` CLI readiness command, the starter CI and pytest configuration, and the `milestone_1` entry point in `app/core.py`; the current corpus loader was added as that starter stub was replaced. The original scaffold also supplied the initial README, ignore rules, and plumbing tests, which were adapted as the project grew. The scaffold's API/LLM client and `.env` setup were later removed. The starter provided milestone prompts and stubs for the model work, not a working GPT implementation.
 
 The project-specific implementation is the bundled fictional product corpus and formatting, byte-level BPE tokenizer, decoder-only Transformer with causal self-attention, next-token training and validation pipeline, local checkpoint-based generation, and the `train` and `describe` CLI workflows. The repository is therefore an implementation built on and adapted from the starter, not a repository written entirely from scratch.
 
