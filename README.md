@@ -14,11 +14,19 @@ Training uses the formatted product examples as token sequences, separated by an
 
 The retained `app/storage.py` JSON key-value store is tested but is not part of the model training or generation path.
 
+## Project origins and implementation
+
+This project began from the AskThili starter scaffold. It retains the `app/` package layout, the `hello` CLI readiness command, the JSON store in `app/storage.py`, the starter CI and pytest configuration, and the `milestone_1` entry point in `app/core.py`; the current corpus loader was added as that starter stub was replaced. The original scaffold also supplied the initial README, ignore rules, and plumbing tests, which were adapted as the project grew. The scaffold's API/LLM client and `.env` setup were later removed. The starter provided milestone prompts and stubs for the model work, not a working GPT implementation.
+
+The project-specific implementation is the bundled fictional product corpus and formatting, byte-level BPE tokenizer, decoder-only Transformer with causal self-attention, next-token training and validation pipeline, local checkpoint-based generation, and the `train` and `describe` CLI workflows. The repository is therefore an implementation built on and adapted from the starter, not a repository written entirely from scratch.
+
 ## Dataset
 
 The UTF-8 JSONL corpus contains 135 fictional records, with 15 examples in each of nine categories: face cleanser, moisturiser, sunscreen, serum, face mask, body lotion, shampoo, conditioner, and lip balm. Each record has `product_name`, `category`, `key_ingredients`, `target_skin_hair_type`, `size`, and `description`.
 
 The corpus and default model are deliberately small so the complete pipeline can run on a CPU laptop. The model defaults to a 64-token context, 64-dimensional embeddings, four attention heads, and two Transformer blocks. The corpus is synthetic and has reused writing patterns; it is useful for exercising the training pipeline, not for teaching broad product knowledge.
+
+See [the recorded evaluation](results/evaluation.md) for the default 200-step CPU run, measured losses, and generated examples.
 
 ## Windows PowerShell setup
 

@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import json
 import random
+import time
 from pathlib import Path
 
 import torch
@@ -80,7 +81,9 @@ def train_model(*, output_dir: str | Path = MODEL_DIR, steps: int = 200, batch_s
     model = GPTLanguageModel(config).to(selected_device)
     optimizer = torch.optim.AdamW(model.parameters(), lr=learning_rate)
     interval = log_interval or max(1, steps // 5)
+    loss_history = []
     print(f"Training custom GPT on {len(products)} product records ({selected_device.type})")
+    training_started = time.perf_counter()
     for step in range(1, steps + 1):
         model.train()
         x, y = _sample_batch(train_data, batch_size, context_length, selected_device)
@@ -90,7 +93,10 @@ def train_model(*, output_dir: str | Path = MODEL_DIR, steps: int = 200, batch_s
         torch.nn.utils.clip_grad_norm_(model.parameters(), 1.0)
         optimizer.step()
         if step == 1 or step % interval == 0 or step == steps:
-            print(f"step {step}/{steps} training loss {loss.item():.4f}")
+            loss_point = {"step": step, "training_loss": float(loss.item())}
+            loss_history.append(loss_point)
+            print(f"step {step}/{steps} training loss {loss_point['training_loss']:.4f}")
+    training_runtime_seconds = time.perf_counter() - training_started
 
     model.eval()
     with torch.no_grad():
@@ -111,6 +117,7 @@ def train_model(*, output_dir: str | Path = MODEL_DIR, steps: int = 200, batch_s
         "training_steps": steps,
         "seed": seed,
         "training_loss": final_training_loss,
+        "training_loss_history": loss_history,
         "validation_loss": final_validation_loss,
     }, checkpoint_path)
     tokenizer.save(output_dir / "tokenizer.json")
@@ -119,6 +126,8 @@ def train_model(*, output_dir: str | Path = MODEL_DIR, steps: int = 200, batch_s
         "context_length": context_length, "learning_rate": learning_rate,
         "seed": seed, "device": str(selected_device),
         "training_loss": final_training_loss, "validation_loss": final_validation_loss,
+        "training_loss_history": loss_history,
+        "training_runtime_seconds": training_runtime_seconds,
         "corpus_records": len(products),
     }
     (output_dir / "config.json").write_text(json.dumps(metadata, indent=2), encoding="utf-8")

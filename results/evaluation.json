@@ -1,0 +1,87 @@
+{
+  "evaluation_type": "default training and generation quality evaluation",
+  "environment": {
+    "python": "3.15.2",
+    "torch_distribution_version": "2.15.0",
+    "torch_runtime_version": "2.15.0+cpu",
+    "pytest": "9.2.0",
+    "device": "cpu",
+    "numpy_available": false
+  },
+  "training_configuration": {
+    "steps": 200,
+    "seed": 42,
+    "device": "cpu",
+    "batch_size": 8,
+    "context_length": 64,
+    "learning_rate": 0.0003,
+    "vocab_size_target": 384,
+    "embedding_dim": 64,
+    "num_heads": 4,
+    "num_layers": 2,
+    "dropout": 0.1,
+    "optimizer": "AdamW",
+    "corpus_records": 135,
+    "training_validation_split": "seeded record-level split: 121 training records and 14 validation records",
+    "validation_loss_method": "mean of 10 randomly sampled validation-window batch losses after training"
+  },
+  "training_loss_history": [
+    {"step": 1, "training_loss": 6.0508952140808105},
+    {"step": 40, "training_loss": 5.561556816101074},
+    {"step": 80, "training_loss": 4.897922039031982},
+    {"step": 120, "training_loss": 4.65955924987793},
+    {"step": 160, "training_loss": 4.572595119476318},
+    {"step": 200, "training_loss": 4.484279155731201}
+  ],
+  "final_training_loss": 4.484279155731201,
+  "validation_loss": 4.472416687011719,
+  "training_loop_runtime_seconds": 5.985920200000692,
+  "runtime_scope": "perf_counter wall time around the 200 optimizer-step loop only; excludes startup, validation, and artifact saving",
+  "generated_examples": [
+    {
+      "input": {
+        "name": "Willow Oat Wash",
+        "category": "Face cleanser",
+        "ingredients": "oat extract, glycerin",
+        "target": "sensitive-feeling skin",
+        "size": "150 ml"
+      },
+      "generation_parameters": "CLI defaults except max-new-tokens=60: temperature=0.8, top-k=40, top-p=0.9",
+      "output": "yda  las   vamerss, soomsfts yeriserodds a ss  . r s yerofet ss .  t ssofsinineaer"
+    },
+    {
+      "input": {
+        "name": "Sunveil Mineral SPF",
+        "category": "Sunscreen",
+        "ingredients": "zinc oxide, aloe",
+        "target": "combination skin",
+        "size": "50 ml"
+      },
+      "generation_parameters": "CLI defaults except max-new-tokens=60: temperature=0.8, top-k=40, top-p=0.9",
+      "output": "a sinlaisbosereenx. a enif Sen. mss t fucofs . thderss ows   erpcain , pl u lip a  er"
+    },
+    {
+      "input": {
+        "name": "Citrus Grove Conditioner",
+        "category": "Conditioner",
+        "ingredients": "coconut oil, citrus peel",
+        "target": "dry hair",
+        "size": "250 ml"
+      },
+      "generation_parameters": "CLI defaults except max-new-tokens=60: temperature=0.8, top-k=40, top-p=0.9",
+      "output": "a brlifmmrowgda s and yi serteaenerpys sysps inls siyastpensenos ointsis, enoinp s"
+    }
+  ],
+  "assessment": {
+    "repetition": "Outputs contain recurring fragments and malformed letter sequences.",
+    "coherence": "The generated strings are not coherent English descriptions.",
+    "practical_usability": "Not usable as product copy without substantial human rewriting; product claims should not be inferred from these outputs.",
+    "limitations": [
+      "The corpus has 135 synthetic examples with repeated phrasing and only nine personal-care categories.",
+      "The reported validation value averages ten sampled windows, not a full corpus pass or a human quality score.",
+      "Generation uses sampling without a CLI seed option, so generated text can vary between runs.",
+      "This run is a small project evaluation and does not demonstrate production readiness."
+    ]
+  },
+  "smoke_test_distinction": "The test suite and the separate short training/generation smoke check verify code paths and artifact loading. They are not quality evaluations. The 200-step run and three outputs above are the actual quality evaluation recorded here."
+}
